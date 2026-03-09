@@ -78,7 +78,7 @@ def send_email(to: str, subject: str, body: str, attachments=None):
         resend.api_key = os.getenv("RESEND_API_KEY")
         
         # Prepare Resend payload
-        sender_email = os.getenv("SENDER_EMAIL", "Naxera AI <onboarding@resend.dev>")
+        sender_email = os.getenv("SENDER_EMAIL") or "Naxera AI <onboarding@resend.dev>"
         params: resend.Emails.SendParams = {
             # You must use a verified domain here if you have one on Resend.
             # Otherwise it falls back to the testing email onboarding@resend.dev
