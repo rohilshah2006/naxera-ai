@@ -2,8 +2,8 @@ name: Daily Stock Report
 
 on:
   schedule:
-    # Runs at 14:00 UTC (which is 6:00 AM PST) every weekday
-    - cron: '43 13 * * 1-5'
+    # Runs at 13:30 UTC (which is 6:30 AM PDT) every weekday
+    - cron: '30 13 * * 1-5'
   workflow_dispatch: # Allows you to click "Run Now" manually to test it
 
 jobs:
