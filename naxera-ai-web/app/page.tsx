@@ -22,6 +22,9 @@ export default function Home() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
+  // --- UI INTERACTION STATE ---
+  const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
+
   // 1. Listen for secure logins & session changes
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -163,9 +166,26 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="flex flex-col items-center justify-center text-center px-4 mt-20 mb-32 relative">
+      <section 
+        className="flex flex-col items-center justify-center text-center px-4 mt-20 mb-32 relative overflow-hidden"
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }}
+        onMouseLeave={() => setMousePos({ x: -1000, y: -1000 })}
+      >
         {/* Background Grids */}
+        {/* Base Faint Grid */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"></div>
+        
+        {/* Interactive Green Glow Grid */}
+        <div 
+          className="absolute inset-0 bg-[linear-gradient(to_right,#22c55e40_1px,transparent_1px),linear-gradient(to_bottom,#22c55e40_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none transition-all duration-0"
+          style={{
+            maskImage: `radial-gradient(350px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`,
+            WebkitMaskImage: `radial-gradient(350px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`
+          }}
+        ></div>
         
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 z-10">
           Financial Intelligence, <br />
