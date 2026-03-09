@@ -71,7 +71,7 @@ def data_collection_node(state: AgentState):
                 loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                 rs = gain / loss
                 rsi = 100 - (100 / (1 + rs))
-                rsi_14 = rsi.iloc[-1]
+                rsi_14 = float(rsi.iloc[-1])
                 
                 quant_data = {
                     "sma_50": f"${round(sma_50, 2)}",
@@ -269,7 +269,7 @@ def publisher_node(state: AgentState):
     
     # Cleanup all charts
     for chart in charts:
-        if os.path.exists(chart):
+        if isinstance(chart, str) and os.path.exists(chart):
             os.remove(chart)
             
     return {"final_report": report}
