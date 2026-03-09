@@ -132,10 +132,29 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white selection:bg-green-500/30">
+    <main 
+      className="min-h-screen bg-[#050505] text-white selection:bg-green-500/30 relative overflow-hidden"
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }}
+      onMouseLeave={() => setMousePos({ x: -1000, y: -1000 })}
+    >
+      {/* Background Grids (Moved to Main container to cover entire page) */}
+      {/* Base Faint Grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none z-0"></div>
       
+      {/* Interactive Green Glow Grid - Made brighter (#22c55e80 instead of 40) and larger radius */}
+      <div 
+        className="absolute inset-0 bg-[linear-gradient(to_right,#22c55e80_1px,transparent_1px),linear-gradient(to_bottom,#22c55e80_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none transition-all duration-0 z-0"
+        style={{
+          maskImage: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`,
+          WebkitMaskImage: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`
+        }}
+      ></div>
+
       {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto">
+      <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto relative z-10">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
             <span className="font-bold font-mono text-white">N</span>
@@ -166,26 +185,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section 
-        className="flex flex-col items-center justify-center text-center px-4 mt-20 mb-32 relative overflow-hidden"
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-        }}
-        onMouseLeave={() => setMousePos({ x: -1000, y: -1000 })}
-      >
-        {/* Background Grids */}
-        {/* Base Faint Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"></div>
-        
-        {/* Interactive Green Glow Grid */}
-        <div 
-          className="absolute inset-0 bg-[linear-gradient(to_right,#22c55e40_1px,transparent_1px),linear-gradient(to_bottom,#22c55e40_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none transition-all duration-0"
-          style={{
-            maskImage: `radial-gradient(350px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`,
-            WebkitMaskImage: `radial-gradient(350px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`
-          }}
-        ></div>
+      <section className="flex flex-col items-center justify-center text-center px-4 mt-20 mb-32 relative z-10">
         
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 z-10">
           Financial Intelligence, <br />
