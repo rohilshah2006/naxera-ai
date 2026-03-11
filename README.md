@@ -90,4 +90,12 @@ Experience the autonomous institutional-grade quantitative analysis engine and g
 
 ---
 
+## ⚖️ License
+
+Proprietary License – **All Rights Reserved**.
+
+For full details, see the [LICENSE](LICENSE) file.
+
+---
+
 *Built with Next.js, Supabase, and LangGraph.*
