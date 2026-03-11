@@ -1,8 +1,10 @@
-# 📈 Naxera AI V3
+# 📈 Naxera AI
 
 **An autonomous, institutional-grade quantitative analysis engine and portfolio tracker.**
 
 Naxera AI transforms standard stock tracking into a fully automated financial briefing system. Powered by a multi-agent AI pipeline, custom quantitative math engines, and Next.js, it delivers Goldman Sachs-level market insights straight to your inbox every morning at 6:00 AM.
+
+🌐 **Live Application:** [www.naxera.space](https://www.naxera.space)
 
 ---
 
@@ -72,35 +74,12 @@ rs = gain / loss
 rsi = 100 - (100 / (1 + rs))
 ```
 
-## 🚀 Getting Started
+## 🚀 Live Application
 
-### Prerequisites
-* Node.js installed
-* Python 3.10+ installed
-* Supabase, Groq, and Tavily API keys
+Naxera AI is now available exclusively as a managed professional service. 
 
-### Installation & Local Development
-
-**1. Clone the repo:**
-```bash
-git clone https://github.com/rohilshah2006/naxera-ai.git
-cd naxera-ai
-```
-
-**2. Setup the Frontend (Next.js):**
-```bash
-npm install
-npm run dev
-```
-*The app will be running at `http://localhost:3000`*
-
-**3. Setup the AI Backend (Python):**
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-pip install -r requirements.txt
-python main.py
-```
+Experience the autonomous institutional-grade quantitative analysis engine and get your daily financial briefings at:
+**[naxera.space](https://naxera.space)**
 
 ---
 
@@ -111,4 +90,4 @@ python main.py
 
 ---
 
-*Built with LangGraph, and a lot of `pandas.DataFrame`.*
+*Built with Next.js, Supabase, and LangGraph.*
