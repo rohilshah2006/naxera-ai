@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
     const { priceId, userId, userEmail } = await request.json();
 
     if (!priceId || !userId) {

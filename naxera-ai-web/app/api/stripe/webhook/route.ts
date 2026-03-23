@@ -4,10 +4,10 @@ import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
   const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.SUPABASE_SERVICE_ROLE_KEY as string
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   );
 
   const body = await request.text();
