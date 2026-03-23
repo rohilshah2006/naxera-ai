@@ -47,9 +47,10 @@ def data_collection_node(state: AgentState):
         ticker = item["ticker"]
         shares = item["shares"]
         
-        # Get Standard Data & Chart
+        # Get Standard Data & Chart — pass frequency so chart window matches
         data = get_financial_metrics(ticker)
-        chart_file = generate_stock_chart(ticker)
+        frequency = item.get("frequency", "daily")
+        chart_file = generate_stock_chart(ticker, frequency)
         if chart_file:
             chart_paths.append(chart_file)
             
@@ -94,11 +95,12 @@ def data_collection_node(state: AgentState):
         portfolio_data.append({
             "ticker": ticker,
             "shares": shares,
+            "frequency": frequency,
             "price": price,
             "value": value,
             "pe_ratio": data.get("pe_ratio", "N/A"),
             "target_mean_price": data.get("target_mean_price", "N/A"),
-            "quant": quant_data # Store our new math
+            "quant": quant_data
         })
         
     return {
@@ -112,21 +114,39 @@ def analyze_node(state: AgentState):
     news_content = state.get("news_results", [""])[0]
     portfolio_data = state.get("portfolio_data", [])
     total_value = state.get("total_value", 0)
+    language_level = state.get("language_level", "regular")
+    
+    # --- LANGUAGE STYLE INSTRUCTIONS ---
+    LANGUAGE_STYLES = {
+        "super-simple":  "Write in extremely plain, simple English. Use no financial jargon whatsoever. Explain every concept as if you're talking to someone who has never heard of the stock market. Use short sentences and simple analogies.",
+        "easy":          "Write in simple, beginner-friendly language. Avoid jargon where possible. When you must use a financial term, briefly explain what it means in parentheses.",
+        "regular":       "Write in a balanced, accessible professional tone. Use standard financial terminology without over-explaining.",
+        "advanced":      "Write using professional financial and investment analysis language, assuming the reader is a knowledgeable investor.",
+        "very-advanced": "Write using highly technical quantitative analysis language suited for professional traders and institutional investors. Use precise financial terminology, statistical references, and assume deep domain expertise.",
+    }
+    language_instruction = LANGUAGE_STYLES.get(language_level, LANGUAGE_STYLES["regular"])
     
     print("🧠 Synthesizing Deep-Dive Quant Reports...")
 
     cards_html = ""
-    # Your Vercel link is safe right here!
+    # Use environment variable for the frontend URL (defaults to production if not set)
     user_uuid = state["portfolio"][0].get("uuid", "")
-    manage_url = f"https://naxera-ai-delta.vercel.app/manage?id={user_uuid}"
+    frontend_url = os.getenv("FRONTEND_URL", "https://naxera-ai-delta.vercel.app")
+    manage_url = f"{frontend_url}/manage?id={user_uuid}"
     
     for stock in portfolio_data:
         ticker = stock['ticker']
         quant = stock['quant']
+        frequency = stock.get('frequency', 'daily')
+        freq_label = frequency.capitalize()  # e.g. "Daily", "Weekly"
         
         # NEW PROMPT: Force the AI to format JSON safely
         prompt = f"""
         You are a Senior Quantitative Investment Analyst at Goldman Sachs.
+        
+        LANGUAGE INSTRUCTION (follow this strictly):
+        {language_instruction}
+        
         Ticker: {ticker}
         Broad Market News: {news_content}
         Financials: Price ${stock['price']}, PE {stock['pe_ratio']}
@@ -163,11 +183,28 @@ def analyze_node(state: AgentState):
         verdict = analysis.get('verdict', 'Hold').upper()
         verdict_color = "#166534" if verdict == "BUY" else "#991b1b" if verdict == "SELL" else "#854d0e"
 
+        # Asset type badge for email
+        asset_type = stock.get('asset_type', 'Stock')
+        ASSET_COLORS = {
+            "Stock":       ("#e8f0fe", "#1a56db"),
+            "ETF":         ("#e0f2fe", "#0369a1"),
+            "Crypto":      ("#fef9c3", "#92400e"),
+            "Mutual Fund": ("#f3e8ff", "#7e22ce"),
+            "Index":       ("#f0fdf4", "#15803d"),
+        }
+        at_bg, at_fg = ASSET_COLORS.get(asset_type, ("#f3f4f6", "#374151"))
+
         # Build the HTML with the new Quant Section and Data Mini-Grid
         cards_html += f"""
         <div style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;">
             <div style="padding: 15px 25px; border-bottom: 1px solid #e5e7eb; background-color: #f9fafb; display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin: 0; font-size: 20px; color: #111827; font-weight: bold;">{ticker} <span style="font-size: 14px; color: #6b7280; font-weight: normal; margin-left: 8px;">({stock['shares']} shares)</span></h2>
+                <div>
+                    <h2 style="margin: 0 0 6px 0; font-size: 20px; color: #111827; font-weight: bold;">{ticker} <span style="font-size: 14px; color: #6b7280; font-weight: normal; margin-left: 8px;">({stock['shares']} shares)</span></h2>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; background-color: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 99px;">&#8635; {freq_label}</span>
+                        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; background-color: {at_bg}; color: {at_fg}; padding: 2px 8px; border-radius: 99px;">{asset_type}</span>
+                    </div>
+                </div>
                 <h2 style="margin: 0; font-size: 20px; color: #111827;">${stock['value']:,.2f}</h2>
             </div>
             
@@ -207,7 +244,7 @@ def analyze_node(state: AgentState):
                     </tr>
                     <tr>
                         <td style="padding: 10px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #374151;">Target</td>
-                        <td style="padding: 10px; border: 1px solid #e5e7eb; color: #111827;">${stock['target_mean_price']}</td>
+                        <td style="padding: 10px; border: 1px solid #e5e7eb; color: #111827;">{f"${stock['target_mean_price']:,.2f}" if stock['target_mean_price'] else 'N/A'}</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; background-color: #f9fafb; border: 1px solid #e5e7eb; font-weight: bold; color: #374151;">P/E Ratio</td>
@@ -294,3 +331,147 @@ def run_agent(inputs: dict):
     app = build_graph()
     result = app.invoke(inputs)
     return result["final_report"]
+
+
+def run_digest_agent(inputs: dict):
+    """
+    Pro-only: Sends a lightweight weekly portfolio digest email.
+    Instead of deep per-stock AI analysis, this is a quick snapshot table
+    covering all holdings with current price, 1-week change, RSI signal, and verdict.
+    """
+    from datetime import date
+    portfolio = inputs.get("portfolio", [])
+    email = inputs.get("user_email", "")
+    language_level = inputs.get("language_level", "regular")
+
+    LANGUAGE_STYLES = {
+        "super-simple":  "Write in extremely plain, simple English. No jargon.",
+        "easy":          "Write in simple, beginner-friendly language.",
+        "regular":       "Write in a balanced professional tone.",
+        "advanced":      "Write using professional financial language.",
+        "very-advanced": "Write using highly technical quantitative language for professional traders.",
+    }
+    lang_note = LANGUAGE_STYLES.get(language_level, LANGUAGE_STYLES["regular"])
+
+    rows_html = ""
+    total_value = 0.0
+    summaries = []
+
+    for item in portfolio:
+        ticker = item["ticker"]
+        shares = item["shares"]
+        try:
+            metrics = get_financial_metrics(ticker)
+            price = metrics.get("current_price", 0) or 0
+            value = price * shares
+            total_value += value
+
+            # Quick 1-week price change
+            stock_yf = yf.Ticker(ticker)
+            hist = stock_yf.history(period="5d")
+            if len(hist) >= 2:
+                week_change = ((hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0]) * 100
+                change_str = f"+{week_change:.1f}%" if week_change >= 0 else f"{week_change:.1f}%"
+                change_color = "#166534" if week_change >= 0 else "#991b1b"
+            else:
+                change_str = "N/A"
+                change_color = "#6b7280"
+
+            # Simple RSI signal
+            hist_long = stock_yf.history(period="1mo")
+            if len(hist_long) >= 15:
+                delta = hist_long['Close'].diff()
+                gain = delta.clip(lower=0).rolling(14).mean()
+                loss = (-delta.clip(upper=0)).rolling(14).mean()
+                rs = gain / loss.replace(0, 1e-9)
+                rsi = float((100 - (100 / (1 + rs))).iloc[-1])
+                signal = "Oversold" if rsi < 30 else "Overbought" if rsi > 70 else "Neutral"
+                signal_color = "#166534" if rsi < 30 else "#991b1b" if rsi > 70 else "#374151"
+                rsi_str = f"{rsi:.0f}"
+            else:
+                signal = "N/A"
+                signal_color = "#6b7280"
+                rsi_str = "N/A"
+
+            summaries.append(f"{ticker} at ${price:,.2f} ({change_str} this week, RSI {rsi_str})")
+
+            rows_html += f"""
+            <tr>
+              <td style="padding:10px 12px;font-weight:bold;color:#111827">{ticker}</td>
+              <td style="padding:10px 12px;color:#374151">{shares}</td>
+              <td style="padding:10px 12px;color:#111827">${price:,.2f}</td>
+              <td style="padding:10px 12px;font-weight:bold;color:{change_color}">{change_str}</td>
+              <td style="padding:10px 12px;color:{signal_color}">{signal} ({rsi_str})</td>
+              <td style="padding:10px 12px;font-weight:bold;color:#111827">${value:,.2f}</td>
+            </tr>"""
+        except Exception as exc:
+            print(f"  ⚠️  Digest: could not fetch {ticker}: {exc}")
+
+    # Ask the LLM for a short portfolio summary paragraph
+    try:
+        summary_prompt = f"""
+        {lang_note}
+        
+        You are reviewing a portfolio's weekly performance. Here is the data:
+        {'; '.join(summaries) if summaries else 'No data available.'}
+        
+        Write a concise 2-3 sentence overview of how this portfolio performed this week.
+        Highlight any standout moves, the overall trend, and one actionable observation.
+        Keep it under 80 words. Return only the plain text paragraph, no JSON.
+        """
+        summary_para = llm.invoke([HumanMessage(content=summary_prompt)]).content.strip()
+    except Exception:
+        summary_para = "Weekly portfolio data has been compiled. Review the table above for key metrics."
+
+    frontend_url = os.getenv("FRONTEND_URL", "https://naxera-ai-delta.vercel.app")
+
+    html = f"""
+    <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background-color:#f3f4f6;padding:20px;">
+      <div style="max-width:620px;margin:0 auto;">
+        <div style="background-color:#111827;color:#fff;padding:25px;text-align:center;border-radius:8px;margin-bottom:20px;">
+          <h1 style="margin:0;font-size:24px;font-weight:bold;">Naxera AI</h1>
+          <p style="margin:4px 0 0;opacity:0.7;font-size:13px;">Weekly Portfolio Digest · Pro Member</p>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid #374151;">
+            <span style="font-size:11px;color:#9ca3af;letter-spacing:1px;">TOTAL VALUE</span><br>
+            <span style="font-size:36px;font-weight:bold;color:#4ade80;">${total_value:,.2f}</span>
+          </div>
+        </div>
+
+        <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.07);margin-bottom:20px;">
+          <div style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
+            <h2 style="margin:0;font-size:16px;color:#111827;">This Week's Snapshot</h2>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+                <th style="padding:9px 12px;text-align:left;color:#6b7280;font-weight:600;">Ticker</th>
+                <th style="padding:9px 12px;text-align:left;color:#6b7280;font-weight:600;">Shares</th>
+                <th style="padding:9px 12px;text-align:left;color:#6b7280;font-weight:600;">Price</th>
+                <th style="padding:9px 12px;text-align:left;color:#6b7280;font-weight:600;">7-Day</th>
+                <th style="padding:9px 12px;text-align:left;color:#6b7280;font-weight:600;">RSI Signal</th>
+                <th style="padding:9px 12px;text-align:left;color:#6b7280;font-weight:600;">Value</th>
+              </tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+          </table>
+        </div>
+
+        <div style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,0.07);margin-bottom:20px;">
+          <h2 style="margin:0 0 10px;font-size:16px;color:#111827;">AI Portfolio Summary</h2>
+          <p style="color:#4b5563;line-height:1.7;font-size:14px;margin:0">{summary_para}</p>
+        </div>
+
+        <div style="text-align:center;font-size:12px;color:#6b7280;padding:16px;border-top:1px solid #d1d5db;">
+          Generated by Naxera AI · Pro Weekly Digest<br><br>
+          <a href="{frontend_url}/manage" style="color:#9ca3af;text-decoration:underline;">Manage Portfolio</a>
+        </div>
+      </div>
+    </div>
+    """
+
+    today_str = date.today().strftime("%B %d, %Y")
+    send_email(
+        to=email,
+        subject=f"📋 Weekly Digest: ${total_value:,.2f} Portfolio · {today_str}",
+        body=html,
+    )

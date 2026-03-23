@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Mail, TrendingUp, ShieldCheck, Zap, Activity, LogOut, ArrowRight, HelpCircle, X } from 'lucide-react';
+import { Mail, TrendingUp, ShieldCheck, Zap, Activity, LogOut, ArrowRight, HelpCircle, X, Lock } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
+import { upgradePlans, type UpgradePlan } from '@/lib/upgradePlans';
+import { fetchUserPlan, canUseFrequency, PLAN_LIMITS, type Plan } from '@/lib/userPlan';
+
+type Frequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export default function Home() {
   const router = useRouter();
@@ -15,20 +19,27 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [showTechStack, setShowTechStack] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<UpgradePlan['name']>(upgradePlans[0].name);
 
   // --- ASSET TRACKING STATE ---
   const [ticker, setTicker] = useState('');
   const [shares, setShares] = useState('1'); // Default to 1 share
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [frequency, setFrequency] = useState<Frequency>('daily');
+  const [plan, setPlan] = useState<Plan>('free');
 
   // --- UI INTERACTION STATE ---
   const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
 
   // 1. Listen for secure logins & session changes
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
+      if (session?.user) {
+        const userPlan = await fetchUserPlan(session.user.id);
+        setPlan(userPlan);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -37,6 +48,13 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const scrollToUpgradeSection = () => {
+    const target = document.getElementById('upgrade-plan');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   // 2. Handle Magic Link Sign In
   const handleLogin = async (e: React.FormEvent) => {
@@ -65,6 +83,11 @@ export default function Home() {
     router.refresh();
   };
 
+  const handleSelectPlan = (planName: UpgradePlan['name']) => {
+    setSelectedPlan(planName);
+    router.push(`/upgrade?plan=${planName.toLowerCase()}`);
+  };
+
   // 4. Handle Adding an Asset
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,18 +114,77 @@ export default function Home() {
     }
 
     try {
-      // Check for duplicates using their secure user_id
+      // --- Plan limit check ---
+      const { count: stockCount } = await supabase
+        .from('subscriptions')
+        .select('uuid', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .eq('active', true);
+
+      const limit = PLAN_LIMITS[plan];
+      if ((stockCount ?? 0) >= limit) {
+        setErrorMessage(
+          plan === 'free'
+            ? 'Free plan is limited to 3 stocks. Upgrade to Core for more.'
+            : 'Core plan is limited to 10 stocks. Upgrade to Pro for unlimited.'
+        );
+        setStatus('error');
+        return;
+      }
+
+      // --- ETF/Crypto plan gate ---
+      // Use Yahoo Finance v7 quote endpoint which reliably returns quoteType
+      // Use our backend API route to bypass CORS issues from Yahoo Finance
+      let detectedAssetType = 'stock';
+      try {
+        const typeRes = await fetch(`/api/asset-type/${encodeURIComponent(ticker.toUpperCase())}`);
+        if (typeRes.ok) {
+          const typeData = await typeRes.json();
+          detectedAssetType = typeData.assetType || 'stock';
+          const isEtfOrCrypto = detectedAssetType === 'etf' || detectedAssetType === 'crypto';
+          
+          if (isEtfOrCrypto && plan === 'free') {
+            setErrorMessage('ETFs and crypto require a Core or Pro plan. Upgrade to unlock.');
+            setStatus('error');
+            return;
+          }
+        }
+      } catch {
+        // If the check fails, allow the add to proceed (fail open)
+      }
+
+      // Check for existing rows (active OR inactive)
       const { data: existingSubscription } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', session.user.id)
-        .eq('ticker', ticker)
-        .single();
+        .eq('ticker', ticker.toUpperCase())
+        .maybeSingle();
 
       if (existingSubscription) {
-        setErrorMessage('You are already tracking this stock!');
-        setStatus('error');
-        return;
+        if (existingSubscription.active) {
+          // Genuinely already tracking it
+          setErrorMessage('You are already tracking this stock!');
+          setStatus('error');
+          return;
+        } else {
+          // Was deleted — re-activate it instead of inserting a duplicate
+          const { error: reactivateError } = await supabase
+            .from('subscriptions')
+            .update({
+              active: true,
+              shares: parseFloat(shares) || 1,
+              frequency: frequency,
+              asset_type: detectedAssetType,
+            })
+            .eq('uuid', existingSubscription.uuid);
+
+          if (reactivateError) throw reactivateError;
+          setStatus('success');
+          setTicker('');
+          setShares('1');
+          return;
+        }
       }
 
       // Insert new stock tied to their secure ID
@@ -111,10 +193,12 @@ export default function Home() {
         .insert([
           { 
             email: session.user.email,
-            user_id: session.user.id, // <--- THE KEY TO PASSING RLS
+            user_id: session.user.id,
             ticker: ticker.toUpperCase(), 
             shares: parseFloat(shares) || 1,
-            active: true 
+            active: true,
+            frequency: frequency,
+            asset_type: detectedAssetType,
           }
         ]);
 
@@ -133,7 +217,7 @@ export default function Home() {
 
   return (
     <main 
-      className="min-h-screen bg-[#050505] text-white selection:bg-green-500/30 relative overflow-hidden"
+      className="min-h-screen bg-black text-white selection:bg-green-500/30 relative overflow-hidden"
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -141,31 +225,34 @@ export default function Home() {
       onMouseLeave={() => setMousePos({ x: -1000, y: -1000 })}
     >
       {/* Background Grids (Moved to Main container to cover entire page) */}
-      {/* Base Faint Grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none z-0"></div>
-      
-      {/* Interactive Green Glow Grid - Made brighter (#22c55e80 instead of 40) and larger radius */}
-      <div 
-        className="absolute inset-0 bg-[linear-gradient(to_right,#22c55e80_1px,transparent_1px),linear-gradient(to_bottom,#22c55e80_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none transition-all duration-0 z-0"
+      {/* Soft blue glow */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-all duration-75 z-0"
         style={{
-          maskImage: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`,
-          WebkitMaskImage: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, black, transparent)`
+          background: `radial-gradient(400px circle at ${mousePos.x}px ${mousePos.y}px, rgba(59,130,246,0.35), rgba(0,0,0,0))`,
         }}
-      ></div>
+      />
 
       {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
-            <span className="font-bold font-mono text-white">N</span>
-          </div>
+    <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto relative z-10">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
+          <span className="font-bold font-mono text-white">N</span>
         </div>
+      </div>
 
-        {/* Right side of navbar */}
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="text-xs font-medium text-green-400">Now Live: Naxera AI v3.0</span>
+      {/* Right side of navbar */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => router.push('/upgrade')}
+          className="text-sm font-medium text-white/70 hover:text-white/90 border border-white/10 rounded-full px-3 py-1 transition-colors"
+        >
+          Upgrade plan
+        </button>
+
+        <div className="hidden md:flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full">
+          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <span className="text-xs font-medium text-green-400">Now Live: Naxera AI v3.0</span>
           </div>
           
           {/* Dynamic Navbar: Show Dashboard/Logout if logged in */}
@@ -181,8 +268,8 @@ export default function Home() {
           ) : (
             <span className="text-sm font-medium text-white/50">Enterprise Auth Enabled</span>
           )}
-        </div>
-      </nav>
+      </div>
+    </nav>
 
       {/* Hero Section */}
       <section className="flex flex-col items-center justify-center text-center px-4 mt-20 mb-32 relative z-10">
@@ -277,11 +364,13 @@ export default function Home() {
                     <Activity className="absolute left-4 top-3.5 w-5 h-5 text-white/30" />
                     <input 
                       type="text" 
-                      placeholder="Ticker (e.g. NVDA)"
+                      placeholder="Ticker (e.g. NVDA, BTC-USD)"
                       className="w-full bg-white/5 border border-white/10 rounded-lg pl-12 pr-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all uppercase"
                       value={ticker}
                       onChange={(e) => setTicker(e.target.value.toUpperCase())}
                     />
+                    <p className="text-[10px] text-white/30 mt-1 ml-1">For crypto, add -USD (e.g. BTC-USD)</p>
+
                   </div>
                 </div>
 
@@ -296,6 +385,43 @@ export default function Home() {
                     onChange={(e) => setShares(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Frequency Selection */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-white/50 ml-1 text-left uppercase tracking-widest">Email Frequency</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as Frequency[]).map((f) => {
+                    const isLocked = f !== 'daily' && !canUseFrequency(plan);
+                    const isActive = frequency === f;
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => {
+                          if (isLocked) { router.push('/upgrade'); return; }
+                          setFrequency(f);
+                        }}
+                        title={isLocked ? 'Upgrade to Core to unlock' : f}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border flex items-center gap-1
+                          ${isLocked
+                            ? 'border-white/5 bg-white/[0.02] text-white/20'
+                            : isActive
+                              ? 'border-green-400/70 bg-green-500/15 text-green-300 shadow-[0_0_0_1px_rgba(74,222,128,0.4)]'
+                              : 'border-white/10 bg-white/5 text-white/40 hover:border-white/30 hover:text-white/70'
+                          }`}
+                      >
+                        {isLocked && <Lock className="w-2.5 h-2.5" />}
+                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!canUseFrequency(plan) && session && (
+                  <p className="text-[11px] text-white/25 text-center">
+                    🔒 <button type="button" onClick={() => router.push('/upgrade')} className="underline hover:text-white/50 transition-colors">Upgrade to Core</button> to unlock all frequencies
+                  </p>
+                )}
               </div>
 
               <button 
@@ -316,9 +442,10 @@ export default function Home() {
               {status === 'error' && (
                 <p className="text-red-400 text-sm text-center mt-2">{errorMessage}</p>
               )}
-            </form>
-          )}
-        </div>
+              </form>
+            )}
+          </div>
+
 
         {/* Social Proof / Footer */}
         <div className="mt-12 flex items-center gap-6 text-white/20">

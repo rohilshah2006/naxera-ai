@@ -1,8 +1,9 @@
-from typing import TypedDict, List, Dict, Any
+from typing import TypedDict, List, Dict, Any, Optional
 
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     user_email: str
     portfolio: List[Dict[str, Any]]      # Input: [{'ticker': 'AAPL', 'shares': 10}, ...]
+    language_level: str                  # Input: 'super-simple' | 'easy' | 'regular' | 'advanced' | 'very-advanced'
     
     news_results: List[str]              # Internal: Broad market news
     portfolio_data: List[Dict[str, Any]] # Internal: Financials for each stock

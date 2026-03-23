@@ -6,70 +6,85 @@ from datetime import timedelta
 
 # ... (keep your existing get_financial_metrics function) ...
 
-def generate_stock_chart(ticker: str):
+def generate_stock_chart(ticker: str, frequency: str = 'daily'):
     """
-    Generates a chart for the LAST 24 HOURS of trading data.
+    Generates a stock chart whose time window matches the email frequency:
+      daily     → last 24 hours  (30m bars)
+      weekly    → last 7 days    (1d bars)
+      monthly   → last 30 days   (1d bars)
+      quarterly → last 4 months  (1wk bars)
+      yearly    → last 1 year    (1wk bars)
     """
+    FREQ_CONFIG = {
+        'daily':     {'period': '5d',  'interval': '30m',  'label': 'Last 24 Hours',  'date_fmt': '%H:%M'},
+        'weekly':    {'period': '1mo', 'interval': '1d',   'label': 'Last 7 Days',    'date_fmt': '%b %d'},
+        'monthly':   {'period': '3mo', 'interval': '1d',   'label': 'Last 1 Month',   'date_fmt': '%b %d'},
+        'quarterly': {'period': '1y',  'interval': '1wk',  'label': 'Last 4 Months',  'date_fmt': '%b %Y'},
+        'yearly':    {'period': '2y',  'interval': '1wk',  'label': 'Last 1 Year',    'date_fmt': '%b %Y'},
+    }
+    cfg = FREQ_CONFIG.get(frequency, FREQ_CONFIG['daily'])
+
     try:
         stock = yf.Ticker(ticker)
-        # We fetch 5 days to be safe (in case of weekends/holidays)
-        # Interval '30m' is good for a 24h view (48 bars)
-        hist = stock.history(period="5d", interval="30m")
-        
+        hist = stock.history(period=cfg['period'], interval=cfg['interval'])
+
         if hist.empty:
             print("⚠️ No price history found.")
             return None
-            
-        # 1. Calculate the Window
-        # Get the very last timestamp in the dataset
-        last_timestamp = hist.index[-1]
-        
-        # Go back exactly 24 hours from that last moment
-        start_timestamp = last_timestamp - timedelta(hours=24)
-        
-        # 2. Slice the Data
-        # We only keep rows that are newer than 'start_timestamp'
-        subset = hist[hist.index >= start_timestamp]
-        
-        if subset.empty:
-            return None
 
-        # 3. Setup the Plot
-        plt.switch_backend('Agg') 
+        # For daily, slice to the last 24 hours exactly (same logic as before)
+        if frequency == 'daily':
+            last_timestamp = hist.index[-1]
+            start_timestamp = last_timestamp - timedelta(hours=24)
+            subset = hist[hist.index >= start_timestamp]
+            if subset.empty:
+                return None
+        # For weekly, keep only the last 7 calendar days
+        elif frequency == 'weekly':
+            last_timestamp = hist.index[-1]
+            start_timestamp = last_timestamp - timedelta(days=7)
+            subset = hist[hist.index >= start_timestamp]
+            if subset.empty:
+                subset = hist  # fallback
+        # For monthly: last 30 days
+        elif frequency == 'monthly':
+            last_timestamp = hist.index[-1]
+            start_timestamp = last_timestamp - timedelta(days=30)
+            subset = hist[hist.index >= start_timestamp]
+            if subset.empty:
+                subset = hist
+        # quarterly / yearly: use all returned data (period already constrains it)
+        else:
+            subset = hist
+
+        plt.switch_backend('Agg')
         plt.figure(figsize=(10, 5))
-        
-        # Color Logic (Green if it ended higher than it started)
+
         start_price = subset['Open'].iloc[0]
         end_price = subset['Close'].iloc[-1]
-        color = '#166534' if end_price >= start_price else '#991b1b' # Dark Green / Dark Red
-        
-        # Plot Line
+        color = '#166534' if end_price >= start_price else '#991b1b'
+
         plt.plot(subset.index, subset['Close'], color=color, linewidth=2)
-        
-        # Fill area under line for a "Robinhood" look
         plt.fill_between(subset.index, subset['Close'], min(subset['Close']), color=color, alpha=0.1)
-        
-        # Formatting Time Axis
-        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-        plt.title(f"{ticker} • Last 24 Hours", fontsize=14, fontweight='bold', color='#333')
+
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter(cfg['date_fmt']))
+        plt.title(f"{ticker} • {cfg['label']}", fontsize=14, fontweight='bold', color='#333')
         plt.grid(True, linestyle='--', alpha=0.3)
         plt.xticks(rotation=0)
-        
-        # Clean up borders
         plt.gca().spines['top'].set_visible(False)
         plt.gca().spines['right'].set_visible(False)
-        
-        # 4. Save
+
         filename = f"{ticker}_chart.png"
         plt.savefig(filename, bbox_inches='tight')
         plt.close()
-        
-        print(f"📈 Chart generated (24h window): {filename}")
+
+        print(f"📈 Chart generated ({cfg['label']}): {filename}")
         return filename
-        
+
     except Exception as e:
         print(f"❌ Failed to generate chart: {e}")
         return None
+
 
 import resend
 
@@ -114,21 +129,58 @@ def send_email(to: str, subject: str, body: str, attachments=None):
 def get_financial_metrics(ticker: str):
     """
     Fetches key financial data using yfinance.
+    Works for stocks, ETFs, and crypto by trying multiple price fields.
     """
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        
-        # We only want the most important data
+
+        # --- PRICE FALLBACK CHAIN ---
+        price = (
+            info.get("currentPrice")
+            or info.get("regularMarketPrice")
+            or info.get("previousClose")
+            or info.get("navPrice")   # some ETFs expose NAV
+            or 0
+        )
+        try:
+            price = float(price)
+        except (TypeError, ValueError):
+            price = 0.0
+
+        # P/E: not available for most ETFs or crypto
+        pe_raw = info.get("trailingPE")
+        pe_ratio = round(float(pe_raw), 2) if pe_raw is not None else "N/A"
+
+        # Analyst target: stocks only, ETFs/crypto get N/A
+        target = info.get("targetMeanPrice")
+
+        # Company summary: safe slice
+        raw_summary = info.get("longBusinessSummary") or "No description available."
+        company_summary = raw_summary[:500] + "..." if len(raw_summary) > 500 else raw_summary
+
+        # --- ASSET TYPE ---
+        quote_type = (info.get("quoteType") or "").upper()
+        QUOTE_TYPE_MAP = {
+            "EQUITY":         "Stock",
+            "ETF":            "ETF",
+            "CRYPTOCURRENCY": "Crypto",
+            "MUTUALFUND":     "Mutual Fund",
+            "INDEX":          "Index",
+            "FUTURE":         "Futures",
+        }
+        asset_type = QUOTE_TYPE_MAP.get(quote_type, "Stock")
+
         financial_data = {
-            "current_price": info.get("currentPrice"),
+            "current_price": price,
             "market_cap": info.get("marketCap"),
-            "pe_ratio": info.get("trailingPE"),
-            "target_mean_price": info.get("targetMeanPrice"),
-            "recommendation": info.get("recommendationKey"), # e.g., 'buy', 'hold'
-            "company_summary": info.get("longBusinessSummary")[:500] + "..." # First 500 chars
+            "pe_ratio": pe_ratio,
+            "target_mean_price": target,
+            "recommendation": info.get("recommendationKey"),
+            "company_summary": company_summary,
+            "asset_type": asset_type,
         }
         return financial_data
     except Exception as e:
         print(f"Error fetching data for {ticker}: {e}")
-        return {}
+        return {"asset_type": "Stock"}
