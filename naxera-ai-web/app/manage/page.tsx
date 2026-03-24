@@ -282,9 +282,11 @@ export default function ManagePage() {
       {/* Navbar */}
       <nav className="flex items-center justify-between py-6 max-w-7xl mx-auto border-b border-white/10 mb-8">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
-          <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
-            <span className="font-bold font-mono text-white">N</span>
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="Naxera AI" 
+            className="w-8 h-8 rounded-full border border-white/10 object-cover"
+          />
           <span className="font-bold font-mono text-white text-xl hidden sm:block">Naxera AI</span>
         </div>
 

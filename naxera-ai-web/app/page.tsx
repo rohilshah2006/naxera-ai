@@ -242,9 +242,11 @@ export default function Home() {
       {/* Navigation */}
     <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto relative z-10">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
-          <span className="font-bold font-mono text-white">N</span>
-        </div>
+        <img 
+          src="/logo.png" 
+          alt="Naxera AI" 
+          className="w-8 h-8 rounded-full border border-white/10 object-cover"
+        />
       </div>
 
       {/* Right side of navbar */}
