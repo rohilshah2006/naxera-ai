@@ -14,30 +14,29 @@ export async function GET(
     const parts = url.pathname.split('/');
     const ticker = decodeURIComponent(parts[parts.length - 1]).toUpperCase();
 
-    // Use Yahoo Finance v7 quote endpoint directly via fetch from the Node.js server.
-    // This bypasses CORS because the request is made server-to-server, NOT from the user's browser.
-    const yahooRes = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`);
+    // The /v8/finance/chart endpoint is extremely robust and provides the 'instrumentType' in its metadata.
+    const yahooRes = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`);
     
     if (!yahooRes.ok) {
        return NextResponse.json({ assetType: 'stock', error: 'Yahoo Finance unreachable' });
     }
 
     const data = await yahooRes.json();
-    const result = data.quoteResponse?.result?.[0];
+    const meta = data.chart?.result?.[0]?.meta;
 
-    if (!result) {
+    if (!meta) {
       return NextResponse.json({ assetType: 'stock', error: 'Ticker not found' });
     }
 
-    const qt = (result.quoteType || 'EQUITY').toUpperCase();
+    const it = (meta.instrumentType || 'EQUITY').toUpperCase();
     
     let assetType = 'stock';
-    if (qt === 'ETF' || qt === 'MUTUALFUND') assetType = 'etf';
-    else if (qt === 'CRYPTOCURRENCY') assetType = 'crypto';
+    if (it === 'ETF' || it === 'MUTUALFUND') assetType = 'etf';
+    else if (it === 'CRYPTOCURRENCY') assetType = 'crypto';
 
-    return NextResponse.json({ assetType, quoteType: qt });
+    return NextResponse.json({ assetType, instrumentType: it });
   } catch (error: any) {
-    console.error('Error fetching asset type via Vercel fetch:', error);
+    console.error('Error fetching asset type:', error);
     return NextResponse.json({ assetType: 'stock', error: error.message }, { status: 200 });
   }
 }

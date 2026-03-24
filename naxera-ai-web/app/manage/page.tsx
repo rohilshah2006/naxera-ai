@@ -75,6 +75,12 @@ export default function ManagePage() {
       setPlan(userPlan);
       setLanguageLevel(userLang);
 
+      // If user is new and has no profile row, create it now as 'free'
+      const { data: profileCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
+      if (!profileCheck) {
+        await supabase.from('profiles').insert([{ id: session.user.id, plan: 'free' }]);
+      }
+
       if (stocksResult.error) throw stocksResult.error;
 
       const normalized = (stocksResult.data || []).map((s) => ({
