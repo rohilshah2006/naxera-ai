@@ -75,6 +75,32 @@ export default function ManagePage() {
       setPlan(userPlan);
       setLanguageLevel(userLang);
 
+      // --- NEW: SELF-HEALING SYNC ---
+      // If any stocks are found matching this email but with a DIFFERENT user_id, 
+      // it means they belong to a legacy account iteration. Move them to the new ID.
+      const { data: orphans } = await supabase
+        .from('subscriptions')
+        .select('uuid')
+        .eq('email', session.user.email)
+        .neq('user_id', session.user.id);
+      
+      if (orphans && orphans.length > 0) {
+        console.log(`[Manage] Self-healing initiated: Migrating ${orphans.length} orphaned stocks to new UUID...`);
+        await supabase
+          .from('subscriptions')
+          .update({ user_id: session.user.id })
+          .eq('email', session.user.email);
+        
+        // RE-FETCH stocks now that they are linked
+        const refetched = await supabase
+          .from('subscriptions')
+          .select('uuid, ticker, shares, frequency, asset_type')
+          .eq('user_id', session.user.id)
+          .eq('active', true);
+        stocksResult.data = refetched.data;
+      }
+      // -------------------------------
+
       // Safety: Ensure a profile row exists for all users
       console.log(`[Manage] Ensuring profile exists for user ID: ${session.user.id}`);
       const { data: profileCheck, error: checkError } = await supabase.from('profiles').select('id').eq('id', session.user.id).maybeSingle();
