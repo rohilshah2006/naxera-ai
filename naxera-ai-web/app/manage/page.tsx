@@ -141,7 +141,16 @@ export default function ManagePage() {
       return;
     }
     setLanguageLevel(level);
-    await supabase.from('profiles').update({ language_level: level }).eq('id', (await supabase.auth.getSession()).data.session!.user.id);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ language_level: level })
+      .eq('id', (await supabase.auth.getSession()).data.session!.user.id);
+      
+    if (error) {
+      console.error('Error saving language level:', error);
+      alert(`Error saving language level: ${error.message}`);
+      checkUserAndFetchStocks(); // Rollback UI state
+    }
   };
 
   const handleFrequencyChange = async (uuid: string, newFreq: Frequency) => {
