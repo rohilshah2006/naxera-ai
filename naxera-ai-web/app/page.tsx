@@ -39,6 +39,12 @@ export default function Home() {
       if (session?.user) {
         const userPlan = await fetchUserPlan(session.user.id);
         setPlan(userPlan);
+        
+        // Safety: Ensure a profile row exists for all users immediately on login
+        const { data: profileCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).maybeSingle();
+        if (!profileCheck) {
+          await supabase.from('profiles').insert([{ id: session.user.id, plan: 'free' }]);
+        }
       }
     });
 

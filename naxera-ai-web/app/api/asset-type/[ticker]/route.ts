@@ -14,10 +14,16 @@ export async function GET(
     const parts = url.pathname.split('/');
     const ticker = decodeURIComponent(parts[parts.length - 1]).toUpperCase();
 
-    // The /v8/finance/chart endpoint is extremely robust and provides the 'instrumentType' in its metadata.
-    const yahooRes = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`);
+    console.log(`[Asset-Type] Fetching for ${ticker}...`);
+
+    // Add cache: 'no-store' to bypass Vercel/Next.js caching
+    const yahooRes = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`,
+      { cache: 'no-store' }
+    );
     
     if (!yahooRes.ok) {
+       console.error(`[Asset-Type] Yahoo reached but failed for ${ticker}: ${yahooRes.status}`);
        return NextResponse.json({ assetType: 'stock', error: 'Yahoo Finance unreachable' });
     }
 
@@ -25,18 +31,24 @@ export async function GET(
     const meta = data.chart?.result?.[0]?.meta;
 
     if (!meta) {
+      console.warn(`[Asset-Type] Ticker ${ticker} not found in chart API.`);
       return NextResponse.json({ assetType: 'stock', error: 'Ticker not found' });
     }
 
-    const it = (meta.instrumentType || 'EQUITY').toUpperCase();
+    const rawType = (meta.instrumentType || 'EQUITY').toUpperCase();
+    console.log(`[Asset-Type] Ticker ${ticker} raw type: ${rawType}`);
     
     let assetType = 'stock';
-    if (it === 'ETF' || it === 'MUTUALFUND') assetType = 'etf';
-    else if (it === 'CRYPTOCURRENCY') assetType = 'crypto';
+    // More inclusive matching for ETFs and Mutual Funds
+    if (rawType.includes('ETF') || rawType.includes('MUTUAL') || rawType.includes('FUND')) {
+      assetType = 'etf';
+    } else if (rawType.includes('CRYPTOCURRENCY') || rawType.includes('COIN')) {
+      assetType = 'crypto';
+    }
 
-    return NextResponse.json({ assetType, instrumentType: it });
+    return NextResponse.json({ assetType, instrumentType: rawType });
   } catch (error: any) {
-    console.error('Error fetching asset type:', error);
+    console.error(`[Asset-Type] Exception fetching asset type:`, error);
     return NextResponse.json({ assetType: 'stock', error: error.message }, { status: 200 });
   }
 }
