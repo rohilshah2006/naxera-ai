@@ -141,15 +141,25 @@ export default function ManagePage() {
       return;
     }
     setLanguageLevel(level);
-    const { error } = await supabase
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { error, count } = await supabase
       .from('profiles')
-      .update({ language_level: level })
-      .eq('id', (await supabase.auth.getSession()).data.session!.user.id);
+      .update({ language_level: level }, { count: 'exact' })
+      .eq('id', session.user.id);
       
     if (error) {
       console.error('Error saving language level:', error);
       alert(`Error saving language level: ${error.message}`);
       checkUserAndFetchStocks(); // Rollback UI state
+    } else if (count === 0) {
+      console.warn('No rows updated for language level.');
+      alert('Security Warning: No profile row was updated. If you are on an old account, please visit the Manage page again after 60 seconds.');
+      checkUserAndFetchStocks();
+    } else {
+      console.log('Language level saved successfully!');
+      // Optional: show a small success indicator
     }
   };
 
