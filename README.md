@@ -24,13 +24,19 @@ We don't just rely on LLM hallucinations. Naxera AI mathematically calculates re
 * **Momentum Tracking:** Computes the 14-day Relative Strength Index (RSI) to determine if an asset is overbought or oversold.
 * **Data-Driven Verdicts:** The AI Analyst is strictly forced to base its Buy/Sell/Hold verdicts on these hard quantitative outputs.
 
-### 3. Bank-Grade Security & Identity 🔒
-* **Passwordless Auth:** Frictionless onboarding using Supabase Magic Links.
-* **Multi-Tenant Isolation:** Locked down via strict PostgreSQL Row-Level Security (RLS) policies. Users can only query, insert, or mutate assets tied to their cryptographically secure `auth.uid()`.
+### 3. Pro-Tier Intelligence ⚡️ (New)
+* **Manual "Run Now" Trigger:** On-demand report generation for Pro users with a 1-hour cooldown.
+* **Price Threshold Alerts:** Set precision price alerts and get notified instantly via email when an asset hits your target.
+* **Custom Language Levels:** Adjust the complexity of your reports from "Super Simple" to "Very Advanced" (Quantitative).
 
-### 4. Autonomous Cloud Scheduling ⏰
+### 4. Bank-Grade Security & Identity 🔒
+* **Stripe Subscriptions:** Seamlessly manage Core and Pro upgrades with real-time webhooks.
+* **Passwordless Auth:** Frictionless onboarding using Supabase Magic Links.
+* **Multi-Tenant Isolation:** Locked down via strict PostgreSQL Row-Level Security (RLS) policies.
+
+### 5. Autonomous Cloud Scheduling ⏰
 * **Zero-Touch Execution:** A serverless GitHub Actions CRON job wakes the Python backend up every weekday.
-* **Queue Optimization:** Scheduled at exactly 5:43 AM PST to bypass global server rush-hour, ensuring the final report lands in the user's inbox perfectly at 6:00 AM.
+* **Queue Optimization:** Scheduled at exactly 5:43 AM PST to ensure your brief arrives by 6:00 AM.
 
 ---
 
@@ -48,7 +54,7 @@ We don't just rely on LLM hallucinations. Naxera AI mathematically calculates re
   <br>
   <img src="https://img.shields.io/badge/Python-3670A0?logo=python&logoColor=ffdd54" alt="Python" />
   <img src="https://img.shields.io/badge/Pandas-%23150458?logo=pandas&logoColor=white" alt="Pandas" />
-  <img src="https://img.shields.io/badge/LangChain-%230052FF?logo=langchain&logoColor=white" alt="LangChain" />
+  <img src="https://img.shields.io/badge/LangGraph-%230052FF?logo=langchain&logoColor=white" alt="LangGraph" />
   <img src="https://img.shields.io/badge/Llama3-%23044F88?logo=meta&logoColor=white" alt="Llama3" />
   <img src="https://img.shields.io/badge/Groq-%23F55036" alt="Groq" />
   <img src="https://img.shields.io/badge/Vercel-%23000000?logo=vercel&logoColor=white" alt="Vercel" />
