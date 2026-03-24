@@ -75,10 +75,19 @@ export default function ManagePage() {
       setPlan(userPlan);
       setLanguageLevel(userLang);
 
-      // If user is new and has no profile row, create it now as 'free'
-      const { data: profileCheck } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
+      // Safety: Ensure a profile row exists for all users
+      console.log(`[Manage] Ensuring profile exists for user ID: ${session.user.id}`);
+      const { data: profileCheck, error: checkError } = await supabase.from('profiles').select('id').eq('id', session.user.id).maybeSingle();
+      
+      if (checkError) {
+        console.error('[Manage] Profile check error:', checkError);
+      }
+
       if (!profileCheck) {
-        await supabase.from('profiles').insert([{ id: session.user.id, plan: 'free' }]);
+        console.log('[Manage] No profile found. Creating fresh profile...');
+        const { error: insertError } = await supabase.from('profiles').insert([{ id: session.user.id, plan: 'free' }]);
+        if (insertError) console.error('[Manage] Profile insert failed:', insertError);
+        else console.log('[Manage] Fresh profile created successfully.');
       }
 
       if (stocksResult.error) throw stocksResult.error;
