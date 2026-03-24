@@ -180,6 +180,7 @@ export default function ManagePage() {
   };
 
   const [triggerLoading, setTriggerLoading] = useState(false);
+  const [triggerTimescale, setTriggerTimescale] = useState<string>('all');
 
   const handleManualTrigger = async () => {
     setTriggerLoading(true);
@@ -190,7 +191,11 @@ export default function ManagePage() {
       const res = await fetch('/api/manual-trigger', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: session.user.id, email: session.user.email })
+        body: JSON.stringify({ 
+          userId: session.user.id, 
+          email: session.user.email,
+          timescale: triggerTimescale 
+        })
       });
       const data = await res.json();
       
@@ -261,16 +266,31 @@ export default function ManagePage() {
           <div className="flex items-center gap-2">
             {/* Pro: Manual trigger button */}
             {canUseTrigger(plan) && (
-              <div className="relative">
-                <button
-                  onClick={handleManualTrigger}
-                  disabled={triggerLoading}
-                  className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 disabled:opacity-50 border border-green-500/30 text-green-400 text-xs font-semibold px-3 py-2 rounded-xl transition-all"
-                  title="Manually trigger a report"
+              <div className="flex items-center gap-2">
+                <select 
+                  value={triggerTimescale}
+                  onChange={(e) => setTriggerTimescale(e.target.value)}
+                  title="Select timescale to run"
+                  className="bg-white/5 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-white/30 cursor-pointer"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  {triggerLoading ? 'Sending...' : 'Run Now'}
-                </button>
+                  <option value="all">All</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+                <div className="relative">
+                  <button
+                    onClick={handleManualTrigger}
+                    disabled={triggerLoading}
+                    className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 disabled:opacity-50 border border-green-500/30 text-green-400 text-xs font-semibold px-3 py-2 rounded-xl transition-all"
+                    title="Manually trigger a report"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    {triggerLoading ? 'Sending...' : 'Run Now'}
+                  </button>
+                </div>
               </div>
             )}
 

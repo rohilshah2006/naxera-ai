@@ -135,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--manual", action="store_true", help="Run manually for a single user")
     parser.add_argument("--user_id", type=str, help="Supabase User ID")
     parser.add_argument("--email", type=str, help="User Email")
+    parser.add_argument("--timescale", type=str, default="all", help="Timescale to run manually (e.g. daily, weekly, all)")
     args = parser.parse_args()
 
     print("--- Starting Naxera AI (Portfolio Mode) ---")
@@ -218,7 +219,10 @@ if __name__ == "__main__":
 
             # --- REGULAR PER-STOCK REPORTS ---
             if args.manual:
-                due_today = portfolio
+                if args.timescale and args.timescale != "all":
+                    due_today = [item for item in portfolio if item['frequency'] == args.timescale]
+                else:
+                    due_today = portfolio
             else:
                 due_today = [item for item in portfolio if is_due_today(item['frequency'])]
 

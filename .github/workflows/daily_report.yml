@@ -5,6 +5,20 @@ on:
     # Runs at 13:30 UTC (which is 6:30 AM PDT) every weekday
     - cron: '30 13 * * 1-5'
   workflow_dispatch: # Allows you to click "Run Now" manually to test it
+    inputs:
+      user_id:
+        description: 'Supabase User ID for manual run'
+        required: false
+        type: string
+      email:
+        description: 'User Email for manual run'
+        required: false
+        type: string
+      timescale:
+        description: 'Timescale to run (e.g. daily, weekly)'
+        required: false
+        type: string
+        default: 'all'
 
 jobs:
   run-agent:
@@ -31,4 +45,9 @@ jobs:
         TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
-      run: python main.py
+      run: |
+        if [ -n "${{ github.event.inputs.user_id }}" ]; then
+          python main.py --manual --user_id "${{ github.event.inputs.user_id }}" --email "${{ github.event.inputs.email }}" --timescale "${{ github.event.inputs.timescale }}"
+        else
+          python main.py
+        fi

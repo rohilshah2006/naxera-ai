@@ -5,7 +5,7 @@ import path from 'path';
 
 export async function POST(request: Request) {
   try {
-    const { userId, email } = await request.json();
+    const { userId, email, timescale } = await request.json();
     
     if (!userId || !email) {
       return NextResponse.json({ error: 'Missing userId or email' }, { status: 400 });
@@ -57,19 +57,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to update rate limit' }, { status: 500 });
     }
     
-    // Fire and forget the python script!
-    // We navigate one directory up from naxera-ai-web to reach naxera-ai root where main.py gives.
-    // The command runs in the background.
-    const projectRoot = path.resolve(process.cwd(), '..');
-    const pythonCmd = `source venv/bin/activate && python3 main.py --manual --user_id "${userId}" --email "${email}"`;
-    
-    exec(pythonCmd, { cwd: projectRoot }, (err, stdout, stderr) => {
-      if (err) {
-        console.error("Manual Trigger Error:", err);
-      } else {
-        console.log("Manual Trigger Success:", stdout);
+    // Fire and forget the GitHub Actions workflow!
+    const githubRes = await fetch(
+      'https://api.github.com/repos/rohilshah2006/naxera-ai/actions/workflows/daily_report.yml/dispatches',
+      {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'Naxera-AI-Vercel'
+        },
+        body: JSON.stringify({
+          ref: 'main',
+          inputs: {
+            user_id: userId,
+            email: email,
+            timescale: timescale || 'all'
+          }
+        })
       }
-    });
+    );
+
+    if (!githubRes.ok) {
+      const errText = await githubRes.text();
+      console.error("GitHub Action Trigger Error:", errText);
+      return NextResponse.json({ error: 'Failed to trigger background job on GitHub' }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, message: "Report generated successfully! Check your email in 1-2 minutes." });
     
