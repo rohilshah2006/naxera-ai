@@ -95,7 +95,8 @@ def check_price_alerts(email: str, portfolio: list, user_id: str):
             html = f"""
             <div style="font-family:Arial,sans-serif;background:#f3f4f6;padding:20px;">
               <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-                <div style="background:#111827;color:#fff;padding:20px;text-align:center;">
+                <div style="background:#111827;color:#fff;padding:24px;text-align:center;">
+                  <img src="https://naxera.space/logo.png" alt="Naxera AI" style="width: 50px; height: 50px; border-radius: 50%; margin-bottom: 12px; border: 2px solid rgba(255,255,255,0.1);" />
                   <h1 style="margin:0;font-size:22px;">⚡ Price Alert Triggered</h1>
                   <p style="margin:6px 0 0;opacity:0.7;font-size:13px;">Naxera AI — Pro Alert</p>
                 </div>

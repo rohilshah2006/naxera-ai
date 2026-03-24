@@ -273,6 +273,7 @@ def analyze_node(state: AgentState):
         <div style="max-width: 600px; margin: 0 auto;">
             
             <div style="background-color: #111827; color: #ffffff; padding: 25px; text-align: center; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <img src="https://naxera.space/logo.png" alt="Naxera AI" style="width: 60px; height: 60px; border-radius: 50%; margin-bottom: 12px; border: 2px solid rgba(255,255,255,0.1);" />
                 <h1 style="margin: 0; font-size: 26px; font-weight: bold;">Naxera AI</h1>
                 <p style="margin: 5px 0 0 0; opacity: 0.8; font-size: 14px;">Daily Portfolio Wrap</p>
                 
@@ -436,6 +437,7 @@ def run_digest_agent(inputs: dict):
     <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background-color:#f3f4f6;padding:20px;">
       <div style="max-width:620px;margin:0 auto;">
         <div style="background-color:#111827;color:#fff;padding:25px;text-align:center;border-radius:8px;margin-bottom:20px;">
+          <img src="https://naxera.space/logo.png" alt="Naxera AI" style="width: 50px; height: 50px; border-radius: 50%; margin-bottom: 12px; border: 2px solid rgba(255,255,255,0.1);" />
           <h1 style="margin:0;font-size:24px;font-weight:bold;">Naxera AI</h1>
           <p style="margin:4px 0 0;opacity:0.7;font-size:13px;">Weekly Portfolio Digest · Pro Member</p>
           <div style="margin-top:16px;padding-top:16px;border-top:1px solid #374151;">
