@@ -180,6 +180,7 @@ if __name__ == "__main__":
             "shares": float(sub['shares']),
             "uuid": sub.get('uuid'),
             "frequency": sub.get('frequency', 'daily'),
+            "asset_type": sub.get('asset_type', 'stock'),
             "user_id": sub.get('user_id'),
         })
 

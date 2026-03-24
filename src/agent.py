@@ -96,6 +96,7 @@ def data_collection_node(state: AgentState):
             "ticker": ticker,
             "shares": shares,
             "frequency": frequency,
+            "asset_type": item.get("asset_type", "stock"),
             "price": price,
             "value": value,
             "pe_ratio": data.get("pe_ratio", "N/A"),
@@ -183,8 +184,14 @@ def analyze_node(state: AgentState):
         verdict = analysis.get('verdict', 'Hold').upper()
         verdict_color = "#166534" if verdict == "BUY" else "#991b1b" if verdict == "SELL" else "#854d0e"
 
-        # Asset type badge for email
-        asset_type = stock.get('asset_type', 'Stock')
+        # Asset type badge for email (Database values are usually lowercase)
+        raw_at = stock.get('asset_type', 'stock').lower()
+        asset_type = "Stock"
+        if raw_at == "etf": asset_type = "ETF"
+        elif raw_at == "crypto": asset_type = "Crypto"
+        elif raw_at == "index": asset_type = "Index"
+        elif "mutual" in raw_at: asset_type = "Mutual Fund"
+
         ASSET_COLORS = {
             "Stock":       ("#e8f0fe", "#1a56db"),
             "ETF":         ("#e0f2fe", "#0369a1"),
