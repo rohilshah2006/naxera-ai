@@ -11,6 +11,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing priceId or userId' }, { status: 400 });
     }
 
+    // Get origin for redirects (works for both local and prod)
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -21,8 +24,8 @@ export async function POST(request: Request) {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/manage?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/upgrade`,
+      success_url: `${origin}/manage?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/upgrade`,
       customer_email: userEmail,
       client_reference_id: userId,
       metadata: {
